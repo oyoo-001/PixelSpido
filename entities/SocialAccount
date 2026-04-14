@@ -1,0 +1,32 @@
+{
+  "name": "SocialAccount",
+  "type": "object",
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": [
+        "tiktok",
+        "instagram",
+        "youtube",
+        "linkedin"
+      ],
+      "description": "Social media platform"
+    },
+    "handle": {
+      "type": "string",
+      "description": "Username or handle on the platform"
+    },
+    "access_token": {
+      "type": "string",
+      "description": "API access token"
+    },
+    "connected": {
+      "type": "boolean",
+      "description": "Whether the account is connected"
+    }
+  },
+  "required": [
+    "platform",
+    "handle"
+  ]
+}

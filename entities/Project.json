@@ -1,0 +1,76 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Project title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the video content"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploading",
+        "transcribing",
+        "analyzing",
+        "generating",
+        "ready",
+        "error"
+      ],
+      "description": "Current processing status"
+    },
+    "video_url": {
+      "type": "string",
+      "description": "URL of the uploaded video file"
+    },
+    "video_filename": {
+      "type": "string",
+      "description": "Original filename"
+    },
+    "video_duration_seconds": {
+      "type": "number",
+      "description": "Duration in seconds"
+    },
+    "thumbnail_url": {
+      "type": "string",
+      "description": "Thumbnail image URL"
+    },
+    "transcript": {
+      "type": "string",
+      "description": "Full transcript text"
+    },
+    "niche": {
+      "type": "string",
+      "enum": [
+        "tech",
+        "fitness",
+        "finance",
+        "education",
+        "entertainment",
+        "lifestyle",
+        "business",
+        "health",
+        "other"
+      ],
+      "description": "Content niche category"
+    },
+    "segments_count": {
+      "type": "number",
+      "description": "Number of extracted segments"
+    },
+    "target_platforms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Target platforms (tiktok, instagram, youtube, linkedin)"
+    }
+  },
+  "required": [
+    "title",
+    "status"
+  ]
+}

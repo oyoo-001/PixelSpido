@@ -1,0 +1,85 @@
+{
+  "name": "Segment",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Reference to parent project"
+    },
+    "title": {
+      "type": "string",
+      "description": "Segment headline"
+    },
+    "start_time": {
+      "type": "number",
+      "description": "Start time in seconds"
+    },
+    "end_time": {
+      "type": "number",
+      "description": "End time in seconds"
+    },
+    "transcript_excerpt": {
+      "type": "string",
+      "description": "Transcript text for this segment"
+    },
+    "viral_score": {
+      "type": "number",
+      "description": "AI-predicted viral potential 0-100"
+    },
+    "hook_type": {
+      "type": "string",
+      "enum": [
+        "curiosity_gap",
+        "problem_solution",
+        "emotional",
+        "controversial",
+        "educational",
+        "storytelling"
+      ],
+      "description": "Type of narrative hook identified"
+    },
+    "headline_overlay": {
+      "type": "string",
+      "description": "Dynamic on-screen headline text"
+    },
+    "caption_tiktok": {
+      "type": "string",
+      "description": "TikTok optimized caption"
+    },
+    "caption_instagram": {
+      "type": "string",
+      "description": "Instagram Reels optimized caption"
+    },
+    "caption_linkedin": {
+      "type": "string",
+      "description": "LinkedIn optimized caption"
+    },
+    "caption_youtube": {
+      "type": "string",
+      "description": "YouTube Shorts optimized caption"
+    },
+    "hashtags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Niche-relevant hashtags"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "exported",
+        "rejected"
+      ],
+      "description": "User review status"
+    }
+  },
+  "required": [
+    "project_id",
+    "title",
+    "start_time",
+    "end_time"
+  ]
+}
