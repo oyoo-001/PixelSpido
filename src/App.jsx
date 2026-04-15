@@ -5,10 +5,13 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeProvider';
 import Layout from './components/Layout';
+import AdminLayout from './components/admin/AdminLayout';
 import Dashboard from './pages/Dashboard';
 import NewProject from './pages/NewProject';
 import ProjectDetail from './pages/ProjectDetail';
 import SocialAccounts from './pages/SocialAccounts';
+import VideoEditor from './pages/VideoEditor';
+import Projects from './pages/Projects';
 import Login from './pages/Login';
 import Landing from './pages/Landing';
 import Settings from './pages/Settings';
@@ -17,7 +20,11 @@ import OAuthCallback from './pages/OAuthCallback';
 import Pricing from './pages/Pricing';
 import PaymentSuccess from './pages/PaymentSuccess';
 import ForgotPassword from './pages/ForgotPassword';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminFinance from './pages/admin/AdminFinance';
+import AdminSupport from './pages/admin/AdminSupport';
+import AdminMessages from './pages/admin/AdminMessages';
 import Product from './pages/product/Product';
 import Features from './pages/product/Features';
 import PricingPage from './pages/product/Pricing';
@@ -112,16 +119,23 @@ function App() {
               <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminRoute><Layout /></AdminRoute>}>
+              {/* Admin Routes - Separate Layout */}
+              <Route path="/admin/dashboard" element={<AdminRoute><AdminLayout /></AdminRoute>}>
                 <Route index element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="finance" element={<AdminFinance />} />
+                <Route path="support" element={<AdminSupport />} />
+                <Route path="messages" element={<AdminMessages />} />
               </Route>
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
               
               {/* Dashboard Routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route index element={<Dashboard />} />
+                <Route path="projects" element={<Projects />} />
                 <Route path="new" element={<NewProject />} />
                 <Route path="project/:id" element={<ProjectDetail />} />
+                <Route path="editor/:id" element={<VideoEditor />} />
                 <Route path="social" element={<SocialAccounts />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="profile" element={<Profile />} />

@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { api } from "@/lib/api";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Check, Loader2, Crown, Zap, Rocket, Star, CreditCard } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Crown, Zap, Rocket, Star, CreditCard, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const PLATFORM_ICONS = {
   starter: Zap,
   pro: Crown,
-  business: Rocket,
+  business: Building2,
 };
 
 export default function Pricing() {
@@ -91,7 +91,7 @@ export default function Pricing() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {plans.map((plan) => {
           const Icon = PLATFORM_ICONS[plan.id] || Zap;
           const isCurrent = isCurrentPlan(plan.id);

@@ -156,7 +156,7 @@ INSERT IGNORE INTO subscription_limits
 ('free', 'Free', 'Perfect for creators just starting out', 0, 0, 'monthly', 5, 20, 2, '720p', 'basic', FALSE, FALSE, FALSE, TRUE, 1),
 ('starter', 'Starter', '7 days free trial, then $12/month', 1500, 12, 'monthly', 15, 50, 10, '1080p', 'advanced', TRUE, TRUE, FALSE, TRUE, 2),
 ('pro', 'Pro', 'For serious content creators', 3500, 29, 'monthly', -1, -1, 100, '4k', 'advanced', TRUE, TRUE, TRUE, TRUE, 3),
-('business', 'Business', 'For teams & agencies', 12000, 99, 'monthly', -1, -1, 500, '4k', 'advanced', TRUE, TRUE, TRUE, FALSE, 4);
+('business', 'Business', 'For teams & agencies', 12000, 99, 'monthly', -1, -1, 500, '4k', 'advanced', TRUE, TRUE, TRUE, TRUE, 4);
 
 -- Password Reset table
 CREATE TABLE IF NOT EXISTS password_resets (

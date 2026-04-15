@@ -37,7 +37,8 @@ const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = process.env.SMTP_PORT || 587;
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
-const SMTP_FROM = process.env.SMTP_FROM || 'PixelSpido <noreply@pixelspido.com>';
+const SMTP_FROM =
+  process.env.SMTP_FROM || "PixelSpido <noreply@pixelspido.com>";
 
 // Exchange rate (KES to USD) - update this periodically
 const KES_TO_USD_RATE = 0.0085; // ~1 USD = 118 KES
@@ -52,6 +53,7 @@ async function initDB() {
     user: process.env.DB_USER || "root",
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "velocity",
+    enableKeepAlive: true,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -180,7 +182,7 @@ async function initDB() {
         )
       `);
 
-await conn.query(`
+      await conn.query(`
         CREATE TABLE IF NOT EXISTS subscription_limits (
           plan VARCHAR(50) PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
@@ -202,9 +204,9 @@ await conn.query(`
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
-      
+
       await conn.query(`
-        INSERT IGNORE INTO subscription_limits 
+        INSERT IGNORE INTO subscription_limits
         (plan, name, description, price_ksh, price_usd, billing_cycle, max_projects_per_month, max_segments_per_project, max_storage_gb, export_quality, ai_features, allow_priority_support, allow_analytics, allow_api_access, is_active, display_order) VALUES
         ('free', 'Free', 'Perfect for creators just starting out', 0, 0, 'monthly', 5, 20, 2, '720p', 'basic', FALSE, FALSE, FALSE, TRUE, 1),
         ('starter', 'Starter', '7 days free trial, then $12/month', 1500, 12, 'monthly', 15, 50, 10, '1080p', 'advanced', TRUE, TRUE, FALSE, TRUE, 2),
@@ -595,35 +597,36 @@ app.post("/api/auth/change-password", authenticateToken, async (req, res) => {
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
-    
+
     // Check if user exists
     const [rows] = await pool.query(
       "SELECT id, email, name FROM users WHERE email = ?",
       [email],
     );
-    
-    // Always return success to prevent email enumeration
-    res.json({ success: true, message: "If the email exists, a reset link has been sent" });
-    
+
     if (rows.length === 0) {
-      return;
+      // Always return success to prevent email enumeration
+      return res.json({
+        success: true,
+        message: "If the email exists, a reset link has been sent",
+      });
     }
-    
+
     // Generate OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
-    
+
     // Store OTP
     await pool.query(
       "INSERT INTO password_resets (user_id, otp, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp = ?, expires_at = ?",
       [rows[0].id, otp, expiresAt, otp, expiresAt],
     );
-    
+
     // Send email (if SMTP configured)
     if (SMTP_HOST && SMTP_USER) {
       const nodemailer = await import("nodemailer");
@@ -636,7 +639,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
           pass: SMTP_PASSWORD,
         },
       });
-      
+
       await transporter.sendMail({
         from: SMTP_FROM,
         to: email,
@@ -665,46 +668,46 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
-    
+
     if (!email || !otp || !newPassword) {
-      return res.status(400).json({ error: "Email, OTP, and new password are required" });
+      return res
+        .status(400)
+        .json({ error: "Email, OTP, and new password are required" });
     }
-    
+
     // Find user
-    const [users] = await pool.query(
-      "SELECT id FROM users WHERE email = ?",
-      [email],
-    );
-    
+    const [users] = await pool.query("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
+
     if (users.length === 0) {
       return res.status(404).json({ error: "Invalid request" });
     }
-    
+
     // Verify OTP
     const [rows] = await pool.query(
       "SELECT * FROM password_resets WHERE user_id = ? AND otp = ? AND expires_at > NOW()",
       [users[0].id, otp],
     );
-    
+
     if (rows.length === 0) {
       return res.status(400).json({ error: "Invalid or expired OTP" });
     }
-    
+
     // Hash new password
     const newHash = await bcrypt.hash(newPassword, 10);
-    
+
     // Update password
-    await pool.query(
-      "UPDATE users SET password_hash = ? WHERE id = ?",
-      [newHash, users[0].id],
-    );
-    
+    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [
+      newHash,
+      users[0].id,
+    ]);
+
     // Delete used OTP
-    await pool.query(
-      "DELETE FROM password_resets WHERE user_id = ?",
-      [users[0].id],
-    );
-    
+    await pool.query("DELETE FROM password_resets WHERE user_id = ?", [
+      users[0].id,
+    ]);
+
     res.json({ success: true, message: "Password reset successfully" });
   } catch (error) {
     console.error("Reset password error:", error);
@@ -718,22 +721,22 @@ app.post("/api/auth/reset-password", async (req, res) => {
 app.post("/api/auth/2fa/setup", authenticateToken, async (req, res) => {
   try {
     const { enable } = req.body;
-    
+
     if (enable) {
       // Generate secret
       const secret = crypto.randomBytes(20).toString("hex");
       const otpauthUrl = `otpauth://totp/PixelSpido:${req.user.email}?secret=${secret}&issuer=PixelSpido`;
-      
+
       // Store pending secret (not active yet until verified)
       await pool.query(
         "UPDATE users SET totp_pending_secret = ? WHERE id = ?",
         [secret, req.user.id],
       );
-      
+
       res.json({
         secret,
         otpauthUrl,
-        message: "Scan the QR code with your authenticator app, then verify"
+        message: "Scan the QR code with your authenticator app, then verify",
       });
     } else {
       // Disable 2FA
@@ -741,7 +744,7 @@ app.post("/api/auth/2fa/setup", authenticateToken, async (req, res) => {
         "UPDATE users SET totp_secret = NULL, totp_pending_secret = NULL WHERE id = ?",
         [req.user.id],
       );
-      
+
       res.json({ success: true, message: "2FA disabled" });
     }
   } catch (error) {
@@ -754,21 +757,21 @@ app.post("/api/auth/2fa/setup", authenticateToken, async (req, res) => {
 app.post("/api/auth/2fa/verify", authenticateToken, async (req, res) => {
   try {
     const { code } = req.body;
-    
+
     if (!code) {
       return res.status(400).json({ error: "Verification code required" });
     }
-    
+
     // Get pending secret
     const [rows] = await pool.query(
       "SELECT totp_pending_secret FROM users WHERE id = ?",
       [req.user.id],
     );
-    
+
     if (!rows[0]?.totp_pending_secret) {
       return res.status(400).json({ error: "No pending 2FA setup" });
     }
-    
+
     // Verify code using speakeasy
     const speakeasy = await import("speakeasy");
     const verified = speakeasy.verify({
@@ -777,17 +780,17 @@ app.post("/api/auth/2fa/verify", authenticateToken, async (req, res) => {
       token: code,
       window: 1,
     });
-    
+
     if (!verified) {
       return res.status(400).json({ error: "Invalid verification code" });
     }
-    
+
     // Activate 2FA
     await pool.query(
       "UPDATE users SET totp_secret = totp_pending_secret, totp_pending_secret = NULL WHERE id = ?",
       [req.user.id],
     );
-    
+
     res.json({ success: true, message: "2FA enabled successfully" });
   } catch (error) {
     console.error("2FA verify error:", error);
@@ -798,11 +801,10 @@ app.post("/api/auth/2fa/verify", authenticateToken, async (req, res) => {
 // Remove 2FA
 app.delete("/api/auth/2fa", authenticateToken, async (req, res) => {
   try {
-    await pool.query(
-      "UPDATE users SET totp_secret = NULL WHERE id = ?",
-      [req.user.id],
-    );
-    
+    await pool.query("UPDATE users SET totp_secret = NULL WHERE id = ?", [
+      req.user.id,
+    ]);
+
     res.json({ success: true, message: "2FA removed" });
   } catch (error) {
     console.error("2FA remove error:", error);
@@ -816,26 +818,28 @@ app.delete("/api/auth/2fa", authenticateToken, async (req, res) => {
 app.post("/api/auth/login-2fa", async (req, res) => {
   try {
     const { tempToken, code } = req.body;
-    
+
     if (!tempToken || !code) {
       return res.status(400).json({ error: "Temp token and code required" });
     }
-    
+
     // Verify temp token
-    const decoded = jwt.verify(tempToken, JWT_SECRET + "_2fa", { expiresIn: "5m" });
-    
+    const decoded = jwt.verify(tempToken, JWT_SECRET + "_2fa", {
+      expiresIn: "5m",
+    });
+
     // Get user
     const [rows] = await pool.query(
       "SELECT id, email, name, avatar_url, totp_secret FROM users WHERE id = ?",
       [decoded.id],
     );
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     const user = rows[0];
-    
+
     // Verify 2FA code
     const speakeasy = await import("speakeasy");
     const verified = speakeasy.verify({
@@ -844,21 +848,24 @@ app.post("/api/auth/login-2fa", async (req, res) => {
       token: code,
       window: 1,
     });
-    
+
     if (!verified) {
       return res.status(400).json({ error: "Invalid 2FA code" });
     }
-    
+
     // Generate full token
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-    
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar_url: user.avatar_url,
+      },
     });
   } catch (error) {
     console.error("Login 2FA error:", error);
@@ -1136,7 +1143,7 @@ Return exactly 3-5 segments in this JSON format:
 }`;
 
     const segmentsRes = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: segmentsPrompt }] }],
         generationConfig: {
@@ -1745,7 +1752,7 @@ app.get("/api/admin/pricing", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Admin access required" });
     }
     const [rows] = await pool.query(
-      "SELECT * FROM subscription_limits ORDER BY display_order ASC"
+      "SELECT * FROM subscription_limits ORDER BY display_order ASC",
     );
     res.json(rows);
   } catch (error) {
@@ -1761,16 +1768,49 @@ app.put("/api/admin/pricing/:plan", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Admin access required" });
     }
     const { plan } = req.params;
-    const { name, description, price_ksh, price_usd, billing_cycle, max_projects_per_month, max_segments_per_project, max_storage_gb, export_quality, ai_features, allow_priority_support, allow_analytics, allow_api_access, is_active, display_order } = req.body;
-    
+    const {
+      name,
+      description,
+      price_ksh,
+      price_usd,
+      billing_cycle,
+      max_projects_per_month,
+      max_segments_per_project,
+      max_storage_gb,
+      export_quality,
+      ai_features,
+      allow_priority_support,
+      allow_analytics,
+      allow_api_access,
+      is_active,
+      display_order,
+    } = req.body;
+
     await pool.query(
       `UPDATE subscription_limits SET name = ?, description = ?, price_ksh = ?, price_usd = ?, billing_cycle = ?, max_projects_per_month = ?, max_segments_per_project = ?, max_storage_gb = ?, export_quality = ?, ai_features = ?, allow_priority_support = ?, allow_analytics = ?, allow_api_access = ?, is_active = ?, display_order = ? WHERE plan = ?`,
-      [name, description, price_ksh, price_usd, billing_cycle, max_projects_per_month, max_segments_per_project, max_storage_gb, export_quality, ai_features, allow_priority_support ? true : false, allow_analytics ? true : false, allow_api_access ? true : false, is_active ? true : false, display_order, plan]
+      [
+        name,
+        description,
+        price_ksh,
+        price_usd,
+        billing_cycle,
+        max_projects_per_month,
+        max_segments_per_project,
+        max_storage_gb,
+        export_quality,
+        ai_features,
+        allow_priority_support ? true : false,
+        allow_analytics ? true : false,
+        allow_api_access ? true : false,
+        is_active ? true : false,
+        display_order,
+        plan,
+      ],
     );
-    
+
     const [rows] = await pool.query(
       "SELECT * FROM subscription_limits WHERE plan = ?",
-      [plan]
+      [plan],
     );
     res.json(rows[0]);
   } catch (error) {
@@ -1785,16 +1825,50 @@ app.post("/api/admin/pricing", authenticateToken, async (req, res) => {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Admin access required" });
     }
-    const { plan, name, description, price_ksh, price_usd, billing_cycle, max_projects_per_month, max_segments_per_project, max_storage_gb, export_quality, ai_features, allow_priority_support, allow_analytics, allow_api_access, is_active, display_order } = req.body;
-    
+    const {
+      plan,
+      name,
+      description,
+      price_ksh,
+      price_usd,
+      billing_cycle,
+      max_projects_per_month,
+      max_segments_per_project,
+      max_storage_gb,
+      export_quality,
+      ai_features,
+      allow_priority_support,
+      allow_analytics,
+      allow_api_access,
+      is_active,
+      display_order,
+    } = req.body;
+
     await pool.query(
       `INSERT INTO subscription_limits (plan, name, description, price_ksh, price_usd, billing_cycle, max_projects_per_month, max_segments_per_project, max_storage_gb, export_quality, ai_features, allow_priority_support, allow_analytics, allow_api_access, is_active, display_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [plan, name, description, price_ksh, price_usd, billing_cycle || 'monthly', max_projects_per_month, max_segments_per_project, max_storage_gb, export_quality, ai_features, allow_priority_support || false, allow_analytics || false, allow_api_access || false, is_active !== false, display_order || 99]
+      [
+        plan,
+        name,
+        description,
+        price_ksh,
+        price_usd,
+        billing_cycle || "monthly",
+        max_projects_per_month,
+        max_segments_per_project,
+        max_storage_gb,
+        export_quality,
+        ai_features,
+        allow_priority_support || false,
+        allow_analytics || false,
+        allow_api_access || false,
+        is_active !== false,
+        display_order || 99,
+      ],
     );
-    
+
     const [rows] = await pool.query(
       "SELECT * FROM subscription_limits WHERE plan = ?",
-      [plan]
+      [plan],
     );
     res.json(rows[0]);
   } catch (error) {
@@ -1821,11 +1895,11 @@ app.get(
 app.get("/api/pricing", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT * FROM subscription_limits WHERE is_active = TRUE ORDER BY display_order ASC"
+      "SELECT * FROM subscription_limits WHERE is_active = TRUE ORDER BY display_order ASC",
     );
-    
+
     // Format for API response
-    const plans = rows.map(row => ({
+    const plans = rows.map((row) => ({
       id: row.plan,
       name: row.name,
       description: row.description,
@@ -1833,7 +1907,7 @@ app.get("/api/pricing", async (req, res) => {
       price_usd: Number(row.price_usd),
       billing_cycle: row.billing_cycle,
       features: getPlanFeatures(row),
-      popular: row.plan === 'pro',
+      popular: row.plan === "pro",
       limits: {
         max_projects_per_month: row.max_projects_per_month,
         max_segments_per_project: row.max_segments_per_project,
@@ -1843,9 +1917,9 @@ app.get("/api/pricing", async (req, res) => {
         allow_priority_support: row.allow_priority_support,
         allow_analytics: row.allow_analytics,
         allow_api_access: row.allow_api_access,
-      }
+      },
     }));
-    
+
     res.json(plans);
   } catch (error) {
     console.error("Get pricing error:", error);
@@ -1856,14 +1930,40 @@ app.get("/api/pricing", async (req, res) => {
 // Helper to get features list
 function getPlanFeatures(plan) {
   const features = [];
-  if (plan.plan === 'free') {
-    features.push('5 projects per month', 'Basic AI analysis', '720p exports', 'Community support');
-  } else if (plan.plan === 'starter') {
-    features.push('7 days free trial', `${plan.max_projects_per_month} projects per month`, 'Advanced AI analysis', `${plan.export_quality} exports`, 'Priority support', 'Analytics');
-  } else if (plan.plan === 'pro') {
-    features.push('Unlimited projects', 'Advanced AI analysis', `${plan.export_quality} exports`, 'Priority support', 'Analytics', 'API access');
-  } else if (plan.plan === 'business') {
-    features.push('Everything in Pro', 'Team collaboration (5 users)', 'API access', 'Custom integrations', 'Dedicated support', 'SLA');
+  if (plan.plan === "free") {
+    features.push(
+      "5 projects per month",
+      "Basic AI analysis",
+      "720p exports",
+      "Community support",
+    );
+  } else if (plan.plan === "starter") {
+    features.push(
+      "7 days free trial",
+      `${plan.max_projects_per_month} projects per month`,
+      "Advanced AI analysis",
+      `${plan.export_quality} exports`,
+      "Priority support",
+      "Analytics",
+    );
+  } else if (plan.plan === "pro") {
+    features.push(
+      "Unlimited projects",
+      "Advanced AI analysis",
+      `${plan.export_quality} exports`,
+      "Priority support",
+      "Analytics",
+      "API access",
+    );
+  } else if (plan.plan === "business") {
+    features.push(
+      "Everything in Pro",
+      "Team collaboration (5 users)",
+      "API access",
+      "Custom integrations",
+      "Dedicated support",
+      "SLA",
+    );
   }
   return features;
 }

@@ -10,6 +10,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ["qrcode"],
+  },
   server: {
     port: process.env.PORT || 5173,
     proxy: {

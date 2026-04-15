@@ -2,10 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Plus, Zap, LogOut, Share2, User, Settings, ChevronDown, CreditCard, Shield } from "lucide-react";
+import { LayoutDashboard, Plus, Zap, LogOut, Share2, User, Settings, ChevronDown, CreditCard, Shield, Video } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/dashboard/projects", icon: Video, label: "Projects" },
   { path: "/dashboard/new", icon: Plus, label: "New Project" },
   { path: "/dashboard/social", icon: Share2, label: "Connect Accounts" },
   { path: "/dashboard/pricing", icon: CreditCard, label: "Pricing" },
@@ -14,18 +23,6 @@ const navItems = [
 function UserMenu() {
   const { user, logout, subscription } = useAuth();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
 
   const handleLogout = () => {
     logout();
@@ -33,48 +30,52 @@ function UserMenu() {
   };
 
   return (
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-secondary transition-colors"
-      >
-        {user?.avatar_url ? (
-          <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-        ) : (
-          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-            <User className="h-4 w-4 text-primary-foreground" />
-          </div>
-        )}
-        <span className="text-sm font-medium hidden md:block">{user?.name}</span>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 bottom-full mb-2 w-56 py-1 rounded-xl bg-card border border-border shadow-xl overflow-hidden z-50">
-          <div className="px-4 py-3 border-b border-border">
-            <p className="text-sm font-medium">{user?.name}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-            {subscription?.plan !== 'free' && (
-              <p className="text-xs text-primary mt-1">{subscription?.plan} Plan</p>
-            )}
-          </div>
-          {user?.role === 'admin' && (
-            <Link to="/admin" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary text-primary" onClick={() => setOpen(false)}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-secondary transition-colors">
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+          ) : (
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+              <User className="h-4 w-4 text-primary-foreground" />
+            </div>
+          )}
+          <span className="text-sm font-medium hidden md:block">{user?.name}</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <p className="text-sm font-medium">{user?.name}</p>
+          <p className="text-xs text-muted-foreground">{user?.email}</p>
+          {subscription?.plan !== 'free' && (
+            <p className="text-xs text-primary mt-1">{subscription?.plan} Plan</p>
+          )}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {user?.role === 'admin' && (
+          <DropdownMenuItem asChild>
+            <Link to="/admin/dashboard" className="flex items-center gap-2 cursor-pointer">
               <Shield className="h-4 w-4" /> Admin Dashboard
             </Link>
-          )}
-          <Link to="/dashboard/profile" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary" onClick={() => setOpen(false)}>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard/profile" className="flex items-center gap-2 cursor-pointer">
             <User className="h-4 w-4" /> My Profile
           </Link>
-          <Link to="/dashboard/settings" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary" onClick={() => setOpen(false)}>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard/settings" className="flex items-center gap-2 cursor-pointer">
             <Settings className="h-4 w-4" /> Settings
           </Link>
-          <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-secondary w-full">
-            <LogOut className="h-4 w-4" /> Sign Out
-          </button>
-        </div>
-      )}
-    </div>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+          <LogOut className="h-4 w-4 mr-2" /> Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

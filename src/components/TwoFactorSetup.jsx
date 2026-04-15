@@ -12,6 +12,22 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
   const [verifying, setVerifying] = useState(false);
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+
+  useEffect(() => {
+    if (setupData?.otpauthUrl) {
+      import("qrcode").then(QRCode => {
+        QRCode.toDataURL(setupData.otpauthUrl, {
+          width: 200,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        }).then(setQrDataUrl).catch(console.error);
+      }).catch(console.error);
+    }
+  }, [setupData?.otpauthUrl]);
 
   const handleEnable = async () => {
     setLoading(true);
@@ -44,6 +60,7 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
       showSuccess("2FA Enabled!", "Your account is now more secure");
       setSetupData(null);
       setCode("");
+      setQrDataUrl(null);
       onUpdate(true);
     } catch (error) {
       showToast(error);
@@ -70,6 +87,7 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
   const handleCancel = () => {
     setSetupData(null);
     setCode("");
+    setQrDataUrl(null);
   };
 
   const copySecret = () => {
@@ -80,7 +98,6 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
     }
   };
 
-  // Setup mode - show QR code or manual entry
   if (setupData) {
     return (
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -94,13 +111,18 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
             Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
           </p>
 
-          {/* QR Code placeholder - in production would use a QR library */}
           <div className="flex justify-center">
-            <img 
-              src={`https://api.qrserver.in/v1/create/?data=${encodeURIComponent(setupData.otpauthUrl)}&size=200x200`}
-              alt="2FA QR Code"
-              className="border rounded-lg"
-            />
+            {qrDataUrl ? (
+              <img 
+                src={qrDataUrl}
+                alt="2FA QR Code"
+                className="border rounded-lg"
+              />
+            ) : (
+              <div className="w-[200px] h-[200px] bg-muted rounded-lg flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
           </div>
 
           <div className="text-center">
@@ -143,7 +165,6 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
     );
   }
 
-  // Not in setup mode - show enable/disable
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
       <div className="flex items-center justify-between">

@@ -234,7 +234,6 @@ export default function Login() {
             {isLogin ? "Sign up" : "Sign in"}
           </button>
         </p>
-        </div>
       </div>
     </div>
   );
