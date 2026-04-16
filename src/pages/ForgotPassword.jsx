@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { showToast, showSuccess } from "@/lib/toast-utils";
@@ -12,9 +12,18 @@ export default function ForgotPassword() {
   const [step, setStep] = useState("email"); // email, verify, reset
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const inputRefs = useRef([]);
+
+  useEffect(() => {
+    if (otpError) {
+      const timeout = setTimeout(() => setOtpError(false), 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [otpError]);
 
   const handleRequestReset = async (e) => {
     e.preventDefault();
@@ -37,12 +46,53 @@ export default function ForgotPassword() {
 
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
-    if (!otp) {
-      showToast({ error: "OTP is required" }, "Please enter the code from your email");
+    if (!otp || otp.length !== 6) {
+      showToast({ error: "Enter 6-digit code" }, "Please enter the full code from your email");
       return;
     }
 
-    setStep("reset");
+    setLoading(true);
+    setOtpError(false);
+    try {
+      // Call API to validate OTP before moving to reset step
+      await api.request('/auth/reset-password', { 
+        method: 'POST', 
+        body: JSON.stringify({ email, otp, newPassword: "temp" }) 
+      });
+      // If we get here, OTP is valid - move to reset step
+      setStep("reset");
+    } catch (error) {
+      setOtpError(true);
+      showToast(error, "Invalid OTP");
+      // Shake the OTP inputs
+      inputRefs.current.forEach((ref, i) => {
+        if (ref) {
+          ref.classList.add('animate-shake');
+          setTimeout(() => ref.classList.remove('animate-shake'), 500);
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    
+    const newOtp = otp.split('');
+    newOtp[index] = value;
+    setOtp(newOtp.join(''));
+    setOtpError(false);
+
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
   };
 
   const handleResetPassword = async (e) => {
@@ -120,20 +170,39 @@ export default function ForgotPassword() {
             <form onSubmit={handleVerifyOTP} className="space-y-6">
               <div className="space-y-2">
                 <Label>Reset Code</Label>
-                <Input
-                  type="text"
-                  placeholder="123456"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                  className="text-center text-2xl letter-spacing-4"
-                  required
-                />
+                <div className="flex justify-center gap-2">
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <Input
+                      key={i}
+                      ref={(el) => (inputRefs.current[i] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={otp[i] || ""}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      className={`w-12 h-12 text-center text-lg font-semibold transition-all ${
+                        otpError 
+                          ? "border-red-500 bg-red-50 dark:bg-red-950 animate-shake" 
+                          : otp.length === 6 
+                            ? "border-green-500 bg-green-50 dark:bg-green-950" 
+                            : "border-input"
+                      }`}
+                    />
+                  ))}
+                </div>
+                {otpError && (
+                  <p className="text-red-500 text-sm text-center mt-2">Invalid OTP. Please try again.</p>
+                )}
               </div>
-              <Button type="submit" className="w-full" disabled={otp.length !== 6}>
-                Verify Code
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={otp.length !== 6 || loading}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify Code"}
               </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("email")}>
+              <Button type="button" variant="ghost" className="w-full" onClick={handleRequestReset}>
                 Resend Code
               </Button>
             </form>

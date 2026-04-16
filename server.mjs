@@ -73,6 +73,89 @@ const SMTP_FROM =
 // Exchange rate (KES to USD) - update this periodically
 const KES_TO_USD_RATE = 0.0085; // ~1 USD = 118 KES
 
+// Professional Email Template
+function createEmailTemplate({ title, content, actionText, actionUrl, footerText }) {
+  const primaryColor = "#6366f1";
+  const textColor = "#1f2937";
+  const mutedColor = "#6b7280";
+  const bgColor = "#f9fafb";
+  
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: ${bgColor}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: ${bgColor};">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 40px 24px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+              <div style="display: inline-flex; align-items: center; gap: 8px;">
+                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, ${primaryColor}, #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/>
+                  </svg>
+                </div>
+                <span style="font-size: 20px; font-weight: 700; color: ${textColor};">PixelSpido</span>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <h1 style="margin: 0 0 16px; font-size: 24px; font-weight: 600; color: ${textColor}; text-align: center;">${title}</h1>
+              
+              <div style="color: ${textColor}; font-size: 16px; line-height: 1.6;">
+                ${content}
+              </div>
+              
+              ${actionText && actionUrl ? `
+              <div style="text-align: center; margin-top: 32px;">
+                <a href="${actionUrl}" style="display: inline-block; padding: 14px 32px; background-color: ${primaryColor}; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px;">
+                  ${actionText}
+                </a>
+              </div>
+              ` : ''}
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0; font-size: 13px; color: ${mutedColor}; text-align: center;">
+                ${footerText || `© ${new Date().getFullYear()} PixelSpido. All rights reserved.`}
+              </p>
+              <p style="margin: 8px 0 0; font-size: 12px; color: ${mutedColor}; text-align: center;">
+                This email was sent to you because you're a registered user of PixelSpido.
+              </p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Additional Info -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px;">
+          <tr>
+            <td style="padding: 24px 20px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: ${mutedColor};">
+                Need help? <a href="mailto:support@pixelspido.com" style="color: ${primaryColor}; text-decoration: none;">Contact Support</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
 // MySQL pool
 let pool;
 
@@ -716,18 +799,19 @@ app.post("/api/auth/forgot-password", async (req, res) => {
           from: SMTP_FROM,
           to: email,
           subject: "Reset your PixelSpido password",
-          text: `Your password reset code is: ${otp}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, please ignore this email.`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-              <h2>Reset Your Password</h2>
-              <p>Your password reset code is:</p>
-              <div style="background: #f5f5f5; padding: 20px; font-size: 32px; letter-spacing: 8px; text-align: center; font-weight: bold;">
-                ${otp}
+          html: createEmailTemplate({
+            title: "Reset Your Password",
+            content: `
+              <p style="text-align: center;">We received a request to reset your password.</p>
+              <p style="text-align: center; margin-top: 24px;">Your verification code:</p>
+              <div style="background: linear-gradient(135deg, #f3f4f6, #e5e7eb); padding: 24px; margin: 20px 0; border-radius: 12px; text-align: center;">
+                <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1f2937;">${otp}</span>
               </div>
-              <p>This code expires in 15 minutes.</p>
-              <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-            </div>
-          `,
+              <p style="text-align: center; color: #6b7280; font-size: 14px;">This code expires in 15 minutes.</p>
+              <p style="text-align: center; color: #dc2626; font-size: 13px; margin-top: 16px;">⚠️ If you didn't request this, please ignore this email or contact support.</p>
+            `,
+            footerText: "Security is important to us. Never share your code with anyone.",
+          }),
         });
         console.log(`Password reset email sent to ${email}`);
       } catch (emailError) {
@@ -774,7 +858,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(400).json({ error: "Invalid or expired OTP" });
+      return res.status(400).json({ error: "Invalid OTP", invalid_field: "otp" });
     }
 
     // Hash new password
@@ -918,18 +1002,19 @@ app.post("/api/auth/2fa/reset-request", authenticateToken, async (req, res) => {
           from: SMTP_FROM,
           to: userEmail,
           subject: "PixelSpido - 2FA Reset Code",
-          text: `Your 2FA reset code is: ${resetCode}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>PixelSpido - 2FA Reset Code</h2>
-              <p>Your 2FA reset code is:</p>
-              <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 20px; background: #f5f5f5; text-align: center; border-radius: 8px;">
-                ${resetCode}
+          html: createEmailTemplate({
+            title: "Two-Factor Authentication Reset",
+            content: `
+              <p style="text-align: center;">You're resetting your 2FA settings.</p>
+              <p style="text-align: center; margin-top: 24px;">Your verification code:</p>
+              <div style="background: linear-gradient(135deg, #f3f4f6, #e5e7eb); padding: 24px; margin: 20px 0; border-radius: 12px; text-align: center;">
+                <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1f2937;">${resetCode}</span>
               </div>
-              <p>This code expires in 10 minutes.</p>
-              <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-            </div>
-          `,
+              <p style="text-align: center; color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
+              <p style="text-align: center; color: #dc2626; font-size: 13px; margin-top: 16px;">⚠️ If you didn't request this, please contact support immediately.</p>
+            `,
+            footerText: "Keep your account secure - never share verification codes.",
+          }),
         });
         console.log(`2FA reset email sent to ${userEmail}`);
       } catch (emailError) {
@@ -2773,38 +2858,42 @@ async function checkSubscriptionExpirations() {
             );
 
             // Send email notification
-            if (SMTP_HOST && SMTP_USER) {
-              const nodemailer = await import("nodemailer");
-              const transporter = nodemailer.createTransport({
-                host: SMTP_HOST,
-                port: parseInt(SMTP_PORT),
-                secure: false,
-                auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
-              });
+            if (SMTP_HOST && SMTP_USER && SMTP_PASSWORD) {
+              try {
+                const nodemailer = await import("nodemailer");
+                const transporter = nodemailer.createTransport({
+                  host: SMTP_HOST,
+                  port: parseInt(SMTP_PORT),
+                  secure: false,
+                  auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
+                });
 
-              const emailSubject =
-                threshold === 0
-                  ? "Your PixelSpido Free Trial Has Expired"
-                  : `Your PixelSpido Trial - ${threshold} Days Remaining`;
+                const emailSubject =
+                  threshold === 0
+                    ? "Your PixelSpido Free Trial Has Expired"
+                    : `Your PixelSpido Trial - ${threshold} Days Remaining`;
 
-              const emailHtml = `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2>${title}</h2>
-                  <p>${message}</p>
-                  <p>Don't lose access to your projects and features.
-                    <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/dashboard/pricing" style="color: #6366f1;">
-                      Upgrade now
-                    </a>
-                  </p>
-                </div>
-              `;
+                const emailHtml = createEmailTemplate({
+                  title: threshold === 0 ? "Your Free Trial Has Expired" : `${threshold} Days Left in Your Trial`,
+                  content: `
+                    <p style="text-align: center;">${message}</p>
+                    <p style="text-align: center; margin-top: 16px;">Don't lose access to your projects and features. Upgrade now to continue using PixelSpido.</p>
+                  `,
+                  actionText: "Upgrade Now",
+                  actionUrl: `${process.env.CLIENT_URL || "http://localhost:5173"}/dashboard/pricing`,
+                  footerText: "Need help? Contact us at support@pixelspido.com",
+                });
 
-              await transporter.sendMail({
-                from: SMTP_FROM,
-                to: user.email,
-                subject: emailSubject,
-                html: emailHtml,
-              });
+                await transporter.sendMail({
+                  from: SMTP_FROM,
+                  to: user.email,
+                  subject: emailSubject,
+                  html: emailHtml,
+                });
+                console.log(`Subscription email sent to ${user.email}: ${emailSubject}`);
+              } catch (emailError) {
+                console.log(`Subscription email failed for ${user.email}: ${emailError.message}`);
+              }
             }
 
             // Log notification
@@ -2819,7 +2908,7 @@ async function checkSubscriptionExpirations() {
                 user.id,
                 threshold === 0 ? "expired" : "expiring",
                 threshold,
-                SMTP_HOST ? TRUE : FALSE,
+                SMTP_HOST ? true : false,
               ],
             );
           }
