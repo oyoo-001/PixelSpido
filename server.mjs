@@ -12,7 +12,7 @@ import axios from "axios";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import multer from "multer";
-
+import nodemailer from "nodemailer";
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -477,9 +477,13 @@ app.post("/api/auth/login", async (req, res) => {
     // Check if user has 2FA enabled
     if (user.totp_secret) {
       // Generate temp token for 2FA verification
-      const tempToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET + "_2fa", {
-        expiresIn: "5m",
-      });
+      const tempToken = jwt.sign(
+        { id: user.id, email: user.email },
+        JWT_SECRET + "_2fa",
+        {
+          expiresIn: "5m",
+        },
+      );
       return res.json({
         requires2fa: true,
         tempToken,
@@ -691,37 +695,52 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       [rows[0].id, otp, expiresAt, otp, expiresAt],
     );
 
-    // Send email (if SMTP configured)
-    if (SMTP_HOST && SMTP_USER) {
-      const nodemailer = await import("nodemailer");
-      const transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: parseInt(SMTP_PORT),
-        secure: false,
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASSWORD,
-        },
-      });
-
-      await transporter.sendMail({
-        from: SMTP_FROM,
-        to: email,
-        subject: "Reset your PixelSpido password",
-        text: `Your password reset code is: ${otp}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, please ignore this email.`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-            <h2>Reset Your Password</h2>
-            <p>Your password reset code is:</p>
-            <div style="background: #f5f5f5; padding: 20px; font-size: 32px; letter-spacing: 8px; text-align: center; font-weight: bold;">
-              ${otp}
+    // Send email if SMTP is configured
+    if (SMTP_HOST && SMTP_USER && SMTP_PASSWORD) {
+      try {
+        const nodemailer = await import("nodemailer");
+        const transporter = nodemailer.createTransport({
+          host: SMTP_HOST,
+          port: parseInt(SMTP_PORT),
+          secure: false,
+          auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASSWORD,
+          },
+          tls: {
+            rejectUnauthorized: false,
+          },
+        });
+        
+        await transporter.sendMail({
+          from: SMTP_FROM,
+          to: email,
+          subject: "Reset your PixelSpido password",
+          text: `Your password reset code is: ${otp}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, please ignore this email.`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+              <h2>Reset Your Password</h2>
+              <p>Your password reset code is:</p>
+              <div style="background: #f5f5f5; padding: 20px; font-size: 32px; letter-spacing: 8px; text-align: center; font-weight: bold;">
+                ${otp}
+              </div>
+              <p>This code expires in 15 minutes.</p>
+              <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
             </div>
-            <p>This code expires in 15 minutes.</p>
-            <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-          </div>
-        `,
-      });
+          `,
+        });
+        console.log(`Password reset email sent to ${email}`);
+      } catch (emailError) {
+        console.log(`Password reset for ${email}: ${otp} (Email failed: ${emailError.message})`);
+      }
+    } else {
+      console.log(`Password reset for ${email}: ${otp} (SMTP not configured - using console)`);
     }
+
+    res.json({
+      success: true,
+      message: "If the email exists, a reset link has been sent",
+    });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({ error: "Failed to process request" });
@@ -874,45 +893,50 @@ app.post("/api/auth/2fa/reset-request", authenticateToken, async (req, res) => {
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await pool.query(
-      "UPDATE users SET totp_pending_secret = ? WHERE id = ?",
-      [resetCode, req.user.id]
-    );
+    await pool.query("UPDATE users SET totp_pending_secret = ? WHERE id = ?", [
+      resetCode,
+      req.user.id,
+    ]);
 
     // Send email with reset code
     const userEmail = req.user.email;
 
-    if (SMTP_HOST && SMTP_USER) {
-      const nodemailer = await import("nodemailer");
-      const transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: parseInt(SMTP_PORT),
-        secure: false,
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASSWORD,
-        },
-      });
+    if (SMTP_HOST && SMTP_USER && SMTP_PASSWORD) {
+      try {
+        const nodemailer = await import("nodemailer");
+        const transporter = nodemailer.createTransport({
+          host: SMTP_HOST,
+          port: parseInt(SMTP_PORT),
+          secure: false,
+          auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASSWORD,
+          },
+        });
 
-      await transporter.sendMail({
-        from: SMTP_FROM,
-        to: userEmail,
-        subject: "PixelSpido - 2FA Reset Code",
-        text: `Your 2FA reset code is: ${resetCode}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>PixelSpido - 2FA Reset Code</h2>
-            <p>Your 2FA reset code is:</p>
-            <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 20px; background: #f5f5f5; text-align: center; border-radius: 8px;">
-              ${resetCode}
+        await transporter.sendMail({
+          from: SMTP_FROM,
+          to: userEmail,
+          subject: "PixelSpido - 2FA Reset Code",
+          text: `Your 2FA reset code is: ${resetCode}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>PixelSpido - 2FA Reset Code</h2>
+              <p>Your 2FA reset code is:</p>
+              <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 20px; background: #f5f5f5; text-align: center; border-radius: 8px;">
+                ${resetCode}
+              </div>
+              <p>This code expires in 10 minutes.</p>
+              <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
             </div>
-            <p>This code expires in 10 minutes.</p>
-            <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-          </div>
-        `,
-      });
+          `,
+        });
+        console.log(`2FA reset email sent to ${userEmail}`);
+      } catch (emailError) {
+        console.log(`2FA Reset Code for ${userEmail}: ${resetCode} (Email failed: ${emailError.message})`);
+      }
     } else {
-      console.log(`2FA Reset Code for ${userEmail}: ${resetCode}`);
+      console.log(`2FA Reset Code for ${userEmail}: ${resetCode} (SMTP not configured - using console)`);
     }
 
     res.json({ message: "Reset code sent to your email" });
@@ -929,7 +953,7 @@ app.post("/api/auth/2fa/reset-verify", authenticateToken, async (req, res) => {
 
     const [rows] = await pool.query(
       "SELECT totp_pending_secret FROM users WHERE id = ?",
-      [req.user.id]
+      [req.user.id],
     );
 
     if (!rows[0]?.totp_pending_secret) {
@@ -943,7 +967,7 @@ app.post("/api/auth/2fa/reset-verify", authenticateToken, async (req, res) => {
     // Remove 2FA
     await pool.query(
       "UPDATE users SET totp_secret = NULL, totp_pending_secret = NULL WHERE id = ?",
-      [req.user.id]
+      [req.user.id],
     );
 
     res.json({ success: true, message: "2FA disabled successfully" });
@@ -2647,7 +2671,7 @@ app.get("/api/notifications", authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       "SELECT * FROM user_notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 20",
-      [req.user.id]
+      [req.user.id],
     );
     res.json(rows);
   } catch (error) {
@@ -2657,32 +2681,40 @@ app.get("/api/notifications", authenticateToken, async (req, res) => {
 });
 
 // Mark notification as read
-app.patch("/api/notifications/:id/read", authenticateToken, async (req, res) => {
-  try {
-    await pool.query(
-      "UPDATE user_notifications SET is_read = TRUE WHERE id = ? AND user_id = ?",
-      [req.params.id, req.user.id]
-    );
-    res.json({ success: true });
-  } catch (error) {
-    console.error("Mark read error:", error);
-    res.status(500).json({ error: "Failed to update notification" });
-  }
-});
+app.patch(
+  "/api/notifications/:id/read",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      await pool.query(
+        "UPDATE user_notifications SET is_read = TRUE WHERE id = ? AND user_id = ?",
+        [req.params.id, req.user.id],
+      );
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark read error:", error);
+      res.status(500).json({ error: "Failed to update notification" });
+    }
+  },
+);
 
 // Get unread count
-app.get("/api/notifications/unread-count", authenticateToken, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      "SELECT COUNT(*) as count FROM user_notifications WHERE user_id = ? AND is_read = FALSE",
-      [req.user.id]
-    );
-    res.json({ count: rows[0]?.count || 0 });
-  } catch (error) {
-    console.error("Get unread count error:", error);
-    res.status(500).json({ error: "Failed to get count" });
-  }
-});
+app.get(
+  "/api/notifications/unread-count",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const [rows] = await pool.query(
+        "SELECT COUNT(*) as count FROM user_notifications WHERE user_id = ? AND is_read = FALSE",
+        [req.user.id],
+      );
+      res.json({ count: rows[0]?.count || 0 });
+    } catch (error) {
+      console.error("Get unread count error:", error);
+      res.status(500).json({ error: "Failed to get count" });
+    }
+  },
+);
 
 // Function to check and send subscription expiration notifications
 async function checkSubscriptionExpirations() {
@@ -2708,11 +2740,14 @@ async function checkSubscriptionExpirations() {
       const thresholds = [7, 3, 1, 0];
 
       for (const threshold of thresholds) {
-        if (daysRemaining === threshold || (threshold === 0 && daysRemaining <= 0)) {
+        if (
+          daysRemaining === threshold ||
+          (threshold === 0 && daysRemaining <= 0)
+        ) {
           // Check if we already sent this notification
           const [existing] = await pool.query(
             "SELECT id FROM subscription_notifications WHERE user_id = ? AND notification_type = ? AND days_before_expiry = ? AND sent_at > DATE_SUB(NOW(), INTERVAL 1 DAY)",
-            [user.id, threshold === 0 ? 'expired' : 'expiring', threshold]
+            [user.id, threshold === 0 ? "expired" : "expiring", threshold],
           );
 
           if (existing.length === 0) {
@@ -2721,10 +2756,12 @@ async function checkSubscriptionExpirations() {
 
             if (threshold === 0) {
               title = "Your trial has expired";
-              message = "Upgrade your plan to continue using PixelSpido features.";
+              message =
+                "Upgrade your plan to continue using PixelSpido features.";
             } else if (threshold === 1) {
               title = "1 day left in your trial";
-              message = "Your free trial expires tomorrow. Upgrade now to continue.";
+              message =
+                "Your free trial expires tomorrow. Upgrade now to continue.";
             } else {
               title = `${threshold} days left in your trial`;
               message = `Your free trial will expire in ${threshold} days. Upgrade to continue.`;
@@ -2732,7 +2769,7 @@ async function checkSubscriptionExpirations() {
 
             await pool.query(
               "INSERT INTO user_notifications (user_id, type, title, message) VALUES (?, ?, ?, ?)",
-              [user.id, 'subscription', title, message]
+              [user.id, "subscription", title, message],
             );
 
             // Send email notification
@@ -2745,16 +2782,17 @@ async function checkSubscriptionExpirations() {
                 auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
               });
 
-              const emailSubject = threshold === 0
-                ? "Your PixelSpido Free Trial Has Expired"
-                : `Your PixelSpido Trial - ${threshold} Days Remaining`;
+              const emailSubject =
+                threshold === 0
+                  ? "Your PixelSpido Free Trial Has Expired"
+                  : `Your PixelSpido Trial - ${threshold} Days Remaining`;
 
               const emailHtml = `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2>${title}</h2>
                   <p>${message}</p>
                   <p>Don't lose access to your projects and features.
-                    <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard/pricing" style="color: #6366f1;">
+                    <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/dashboard/pricing" style="color: #6366f1;">
                       Upgrade now
                     </a>
                   </p>
@@ -2770,12 +2808,19 @@ async function checkSubscriptionExpirations() {
             }
 
             // Log notification
-            console.log(`Sent subscription notification to ${user.email}: ${title}`);
+            console.log(
+              `Sent subscription notification to ${user.email}: ${title}`,
+            );
 
             // Record that we sent this notification
             await pool.query(
               "INSERT INTO subscription_notifications (user_id, notification_type, days_before_expiry, email_sent) VALUES (?, ?, ?, ?)",
-              [user.id, threshold === 0 ? 'expired' : 'expiring', threshold, SMTP_HOST ? TRUE : FALSE]
+              [
+                user.id,
+                threshold === 0 ? "expired" : "expiring",
+                threshold,
+                SMTP_HOST ? TRUE : FALSE,
+              ],
             );
           }
         }

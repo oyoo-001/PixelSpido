@@ -157,12 +157,16 @@ GEMINI_API_KEY=your_gemini_api_key
 PAYSTACK_SECRET_KEY=your_paystack_secret_key
 PAYSTACK_PUBLIC_KEY=your_paystack_public_key
 
-# SMTP (Email)
+# SMTP (Email) - Use Gmail App Password, not regular password
+# For Gmail: Enable 2FA, then generate App Password at https://myaccount.google.com/signinoptions/notifications
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
+SMTP_PASSWORD=your_16_char_app_password
 SMTP_FROM=PixelSpido <noreply@pixelspido.com>
+
+# App URL
+CLIENT_URL=http://localhost:5173
 
 # App
 PORT=3000
