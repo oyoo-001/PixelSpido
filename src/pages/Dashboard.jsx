@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { showToast } from "@/lib/toast-utils";
+import NotificationBanner from "@/components/NotificationBanner";
 import {
   Plus,
   Loader2,
@@ -86,6 +87,8 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 lg:p-8 space-y-8">
+      <NotificationBanner />
+      
       {/* Header with Greeting */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -96,7 +99,7 @@ export default function Dashboard() {
             Here's what's happening with your content.
           </p>
         </div>
-        <Link to="/dashboard/new">
+        <Link to="/dashboard/editor">
           <Button className="gap-2 bg-primary hover:bg-primary/90">
             <Plus className="h-4 w-4" />
             New Project
@@ -191,7 +194,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent Projects</h2>
             <Link
-              to="/dashboard/projects"
+              to="/dashboard/editor"
               className="text-sm text-primary hover:underline"
             >
               View all
@@ -201,7 +204,7 @@ export default function Dashboard() {
             {recentProjects.map((project) => (
               <Link
                 key={project.id}
-                to={`/dashboard/projects/${project.id}`}
+                to={`/dashboard/project/${project.id}`}
                 className="group relative overflow-hidden rounded-xl bg-card border border-border hover:border-primary/50 transition-colors"
               >
                 <div className="aspect-video bg-muted relative">

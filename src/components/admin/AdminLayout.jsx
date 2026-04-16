@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 const adminNavItems = [
-  { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/admin", icon: LayoutDashboard, label: "Dashboard" },
   { path: "/admin/users", icon: Users, label: "Users" },
   { path: "/admin/finance", icon: DollarSign, label: "Finance" },
   { path: "/admin/support", icon: Headphones, label: "Support" },

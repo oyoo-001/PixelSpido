@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { showToast, showSuccess } from "@/lib/toast-utils";
-import { Shield, ShieldCheck, ShieldOff, Loader2, Copy, Check } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, Loader2, Copy, Check, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function TwoFactorSetup({ enabled, onUpdate }) {
   const [loading, setLoading] = useState(false);
@@ -13,6 +14,10 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetCode, setResetCode] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     if (setupData?.otpauthUrl) {
@@ -70,17 +75,44 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
   };
 
   const handleDisable = async () => {
-    if (!confirm("Are you sure you want to disable 2FA?")) return;
-    
+    setResetSent(false);
+    setResetCode("");
+    setShowResetDialog(true);
+  };
+
+  const handleRequestReset = async () => {
     setLoading(true);
     try {
-      await api.request('/auth/2fa', { method: 'DELETE' });
-      showSuccess("2FA Disabled", "Two-factor authentication has been removed");
-      onUpdate(false);
+      await api.request('/auth/2fa/reset-request', { method: 'POST' });
+      setResetSent(true);
+      showSuccess("Code sent!", "Check your email for the reset code");
     } catch (error) {
       showToast(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyReset = async (e) => {
+    e.preventDefault();
+    if (!resetCode || resetCode.length !== 6) {
+      showToast({ error: "Enter 6-digit code" }, "Please enter the code from your email");
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await api.request('/auth/2fa/reset-verify', {
+        method: 'POST',
+        body: JSON.stringify({ code: resetCode })
+      });
+      showSuccess("2FA Disabled", "Two-factor authentication has been removed");
+      setShowResetDialog(false);
+      onUpdate(false);
+    } catch (error) {
+      showToast(error);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -203,6 +235,86 @@ export default function TwoFactorSetup({ enabled, onUpdate }) {
           You'll need to enter a code from your authenticator app when signing in.
         </p>
       )}
+
+      {/* 2FA Reset Dialog */}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Mail className="h-6 w-6 text-primary" />
+            </div>
+            <DialogTitle className="text-xl">
+              {resetSent ? "Enter Reset Code" : "Disable 2FA"}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              {resetSent 
+                ? "Enter the 6-digit code sent to your email" 
+                : "To disable 2FA, we'll send a verification code to your email"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!resetSent ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                A 6-digit code will be sent to your email address to verify your identity.
+              </p>
+              <Button onClick={handleRequestReset} className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                Send Verification Code
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleVerifyReset} className="space-y-4">
+              <div className="flex justify-center gap-2">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <Input
+                    key={i}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    className="w-12 h-12 text-center text-lg font-semibold"
+                    value={resetCode[i] || ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      const newCode = resetCode.split("");
+                      newCode[i] = val.slice(-1);
+                      const code = newCode.join("");
+                      setResetCode(code);
+                      if (val && i < 5) {
+                        document.getElementById(`reset-2fa-input-${i + 1}`)?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !resetCode[i] && i > 0) {
+                        document.getElementById(`reset-2fa-input-${i - 1}`)?.focus();
+                      }
+                    }}
+                    id={`reset-2fa-input-${i}`}
+                  />
+                ))}
+              </div>
+              <Button type="submit" className="w-full" disabled={resetLoading || resetCode.length !== 6}>
+                {resetLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...
+                  </>
+                ) : (
+                  "Verify & Disable"
+                )}
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => { setResetSent(false); setResetCode(""); }}
+              >
+                Resend Code
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

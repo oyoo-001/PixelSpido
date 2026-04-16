@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Plus, Zap, LogOut, Share2, User, Settings, ChevronDown, CreditCard, Shield, Video } from "lucide-react";
+import { LayoutDashboard, Plus, Zap, LogOut, Share2, User, Settings, ChevronDown, CreditCard, Shield, Video, Scissors } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,8 +14,7 @@ import {
 
 const navItems = [
   { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/dashboard/projects", icon: Video, label: "Projects" },
-  { path: "/dashboard/new", icon: Plus, label: "New Project" },
+  { path: "/dashboard/editor", icon: Scissors, label: "Video Editor" },
   { path: "/dashboard/social", icon: Share2, label: "Connect Accounts" },
   { path: "/dashboard/pricing", icon: CreditCard, label: "Pricing" },
 ];

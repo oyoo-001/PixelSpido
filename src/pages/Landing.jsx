@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import Footer from "@/components/Footer";
+import SupportWidget from "@/components/SupportWidget";
 import { Zap, Play, Film, Sparkles, ArrowRight, User, Settings, LogOut, ChevronDown, Loader2, Check, Star, Zap as ZapIcon, Crown, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -352,6 +353,9 @@ export default function Landing() {
 
       {/* Footer */}
       <Footer />
+      
+      {/* Support Widget */}
+      <SupportWidget />
     </div>
   );
 }

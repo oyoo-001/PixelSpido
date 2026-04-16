@@ -47,7 +47,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const { token, user } = await api.auth.login({ email, password });
+    const response = await api.auth.login({ email, password });
+    
+    if (response.requires2fa) {
+      return response;
+    }
+    
+    const { token, user } = response;
     api.setToken(token);
     setUser(user);
     setIsAuthenticated(true);

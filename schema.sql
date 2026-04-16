@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS subscription_limits (
     price_ksh DECIMAL(10,2) DEFAULT 0,
     price_usd DECIMAL(10,2) DEFAULT 0,
     billing_cycle VARCHAR(20) DEFAULT 'monthly',
+    trial_days INT DEFAULT 7,
     max_projects_per_month INT DEFAULT 5,
     max_segments_per_project INT DEFAULT 20,
     max_storage_gb INT DEFAULT 2,
@@ -149,6 +150,9 @@ CREATE TABLE IF NOT EXISTS subscription_limits (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- Add trial_days column if not exists
+ALTER TABLE subscription_limits ADD COLUMN trial_days INT DEFAULT 7;
 
 -- Default pricing plans data
 INSERT IGNORE INTO subscription_limits 
@@ -173,3 +177,82 @@ CREATE TABLE IF NOT EXISTS password_resets (
 -- Add 2FA columns to users table
 ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64);
 ALTER TABLE users ADD COLUMN totp_pending_secret VARCHAR(64);
+
+-- Payments table
+CREATE TABLE IF NOT EXISTS payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    plan VARCHAR(50),
+    amount DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'KES',
+    reference VARCHAR(100) UNIQUE,
+    status VARCHAR(20) DEFAULT 'pending',
+    paystack_ref VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
+
+-- Contact messages table
+CREATE TABLE IF NOT EXISTS contact_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    subject VARCHAR(255),
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_is_read (is_read)
+);
+
+-- Live support conversations table
+CREATE TABLE IF NOT EXISTS support_conversations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    assigned_to INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_status (status)
+);
+
+-- Support messages table
+CREATE TABLE IF NOT EXISTS support_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id INT NOT NULL,
+    from_user BOOLEAN DEFAULT TRUE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES support_conversations(id) ON DELETE CASCADE
+);
+
+-- User notifications table
+CREATE TABLE IF NOT EXISTS user_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_read (is_read)
+);
+
+-- Subscription notifications tracking table
+CREATE TABLE IF NOT EXISTS subscription_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    notification_type VARCHAR(50) NOT NULL,
+    days_before_expiry INT,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    email_sent BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id)
+);
